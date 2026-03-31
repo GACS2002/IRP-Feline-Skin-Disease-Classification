@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FeliDerm — Feline Skin Disease Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f0e;
+    --surface:   #141714;
+    --border:    #252825;
+    --accent:    #a8e063;
+    --accent2:   #5fa832;
+    --text:      #e8ede8;
+    --muted:     #6b7a6b;
+    --danger:    #e06363;
+    --warn:      #e0c463;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(168,224,99,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,224,99,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(168,224,99,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 48px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.6rem;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .logo span {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  .tagline {
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .model-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 4px 10px;
+    background: rgba(168,224,99,0.08);
+    border: 1px solid rgba(168,224,99,0.2);
+    border-radius: 4px;
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+
+  .model-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(168,224,99,0.04);
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    display: block;
+    filter: grayscale(0.3);
+  }
+
+  .upload-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .upload-label strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Preview */
+  .preview-wrap {
+    display: none;
+    margin-top: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .preview-wrap img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .preview-clear {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(13,15,14,0.85);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    transition: all 0.2s;
+  }
+
+  .preview-clear:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* Analyse button */
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--accent);
+    color: #0d0f0e;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: #bef07a;
+    transform: translateY(-1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn.loading {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    pointer-events: none;
+  }
+
+  /* Result card */
+  .result-card {
+    display: none;
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .result-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .result-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .result-class {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    margin-top: 4px;
+    line-height: 1.1;
+  }
+
+  .result-class.healthy   { color: var(--accent); }
+  .result-class.ringworm  { color: var(--warn); }
+  .result-class.scabies   { color: var(--danger); }
+  .result-class.flea      { color: #e09063; }
+
+  .result-icon { font-size: 2rem; }
+
+  /* Confidence bars */
+  .confidence-section {
+    padding: 16px 20px;
+  }
+
+  .conf-label {
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .conf-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .conf-name {
+    font-size: 0.7rem;
+    color: var(--muted);
+    width: 100px;
+    flex-shrink: 0;
+  }
+
+  .conf-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .conf-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .conf-bar.top { background: var(--accent); }
+  .conf-bar.mid { background: var(--muted); }
+
+  .conf-pct {
+    font-size: 0.68rem;
+    color: var(--muted);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin-top: 32px;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    line-height: 1.7;
+    letter-spacing: 0.02em;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .disclaimer strong { color: var(--text); }
+
+  /* Error */
+  .error-msg {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(224,99,99,0.08);
+    border: 1px solid rgba(224,99,99,0.25);
+    border-radius: 8px;
+    font-size: 0.72rem;
+    color: var(--danger);
+    animation: fadeUp 0.3s ease both;
+  }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Feli<span>Derm</span></div>
+    <div class="tagline">Feline Skin Disease Classification System</div>
+    <div class="model-badge">DeiT-Small · PCA · SVM · v1.0</div>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*">
+    <span class="upload-icon">🐱</span>
+    <div class="upload-label">
+      <strong>Click to upload</strong> or drag & drop<br>
+      JPG, PNG, WEBP supported
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-wrap" id="previewWrap">
+    <img id="previewImg" src="" alt="Preview">
+    <button class="preview-clear" id="clearBtn">✕ clear</button>
+  </div>
+
+  <!-- Analyse button -->
+  <button class="btn" id="analyseBtn" disabled>Analyse Image</button>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Result -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div>
+        <div class="result-label">Diagnosis</div>
+        <div class="result-class" id="resultClass">—</div>
+      </div>
+      <div class="result-icon" id="resultIcon">—</div>
+    </div>
+    <div class="confidence-section">
+      <div class="conf-label">Confidence breakdown</div>
+      <div id="confBars"></div>
+    </div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <strong>Research prototype only.</strong> This tool is part of an academic IRP and is not a substitute for professional veterinary diagnosis. Always consult a qualified veterinarian for clinical decisions.
+  </div>
+
+</div>
+
+<script>
+  const fileInput   = document.getElementById('fileInput');
+  const uploadZone  = document.getElementById('uploadZone');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg  = document.getElementById('previewImg');
+  const clearBtn    = document.getElementById('clearBtn');
+  const analyseBtn  = document.getElementById('analyseBtn');
+  const resultCard  = document.getElementById('resultCard');
+  const resultClass = document.getElementById('resultClass');
+  const resultIcon  = document.getElementById('resultIcon');
+  const confBars    = document.getElementById('confBars');
+  const errorMsg    = document.getElementById('errorMsg');
+
+  const API_URL = 'http://localhost:5000/predict';
+
+  const CLASS_META = {
+    'Healthy'     : { icon: '✅', css: 'healthy' },
+    'Ringworm'    : { icon: '⚠️', css: 'ringworm' },
+    'Scabies'     : { icon: '🔴', css: 'scabies'  },
+    'Flea Allergy': { icon: '🟠', css: 'flea'     },
+  };
+
+  let selectedFile = null;
+
+  // Drag & drop
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+
+  function loadFile(file) {
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewWrap.style.display = 'block';
+    analyseBtn.disabled = false;
+    resultCard.style.display = 'none';
+    errorMsg.style.display = 'none';
+  }
+
+  clearBtn.addEventListener('click', () => {
+    selectedFile = null;
+    fileInput.value = '';
+    previewWrap.style.display = 'none';
+    previewImg.src = '';
+    analyseBtn.disabled = true;
+    resultCard.style.display = 'none';
+    errorMsg.style.display = 'none';
+  });
+
+  analyseBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    // Loading state
+    analyseBtn.classList.add('loading');
+    analyseBtn.innerHTML = '<span class="spinner"></span>Analysing...';
+    resultCard.style.display = 'none';
+    errorMsg.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+
+    try {
+      const res  = await fetch(API_URL, { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      showResult(data);
+
+    } catch (err) {
+      errorMsg.textContent = `Error: ${err.message}. Make sure the Flask server is running on port 5000.`;
+      errorMsg.style.display = 'block';
+    } finally {
+      analyseBtn.classList.remove('loading');
+      analyseBtn.innerHTML = 'Analyse Image';
+    }
+  });
+
+  function showResult(data) {
+    const cls  = data.prediction;
+    const meta = CLASS_META[cls] || { icon: '❓', css: '' };
+
+    resultClass.textContent = cls;
+    resultClass.className   = `result-class ${meta.css}`;
+    resultIcon.textContent  = meta.icon;
+
+    // Confidence bars
+    confBars.innerHTML = '';
+    const conf    = data.confidence;
+    const maxConf = Math.max(...Object.values(conf));
+
+    Object.entries(conf)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([name, pct]) => {
+        const isTop = pct === maxConf;
+        const row = document.createElement('div');
+        row.className = 'conf-row';
+        row.innerHTML = `
+          <span class="conf-name">${name}</span>
+          <div class="conf-bar-wrap">
+            <div class="conf-bar ${isTop ? 'top' : 'mid'}" data-width="${pct}"></div>
+          </div>
+          <span class="conf-pct">${pct.toFixed(1)}%</span>
+        `;
+        confBars.appendChild(row);
+      });
+
+    resultCard.style.display = 'block';
+
+    // Animate bars after render
+    setTimeout(() => {
+      document.querySelectorAll('.conf-bar').forEach(bar => {
+        bar.style.width = bar.dataset.width + '%';
+      });
+    }, 50);
+  }
+</script>
+</body>
+</html>
