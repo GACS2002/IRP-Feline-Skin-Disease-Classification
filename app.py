@@ -59,13 +59,6 @@ def predict():
         pred_idx     = svm.predict(pca_features)[0]
         pred_class   = CLASS_NAMES[pred_idx]
 
-        # Get SVM confidence scores if probability=True was set
-        #try:
-        #    proba = svm.predict_proba(pca_features)[0]
-        #    confidence = {CLASS_NAMES[i]: round(float(p) * 100, 1) for i, p in enumerate(proba)}
-        #except:
-        #    confidence = {cls: 100.0 if cls == pred_class else 0.0 for cls in CLASS_NAMES}
-
         scores = svm.decision_function(pca_features)[0]
         e = np.exp(scores - np.max(scores))
         proba = e / e.sum()
