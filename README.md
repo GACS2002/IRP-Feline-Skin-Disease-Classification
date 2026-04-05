@@ -88,25 +88,6 @@ Predicted Class + Confidence Score
 
 ---
 
-## Results Summary
-
-| Combination | Val Acc | Test Acc | Gap  | Macro F1 |
-|-------------|---------|----------|------|----------|
-| **RF + PCA**| 92.47% | **85.81%**| 6.66%| 0.86 |
-| SVM + PCA   | 94.52% | 85.81%   | 8.71% | 0.86 |
-| SVM + MI    | 95.21% | 85.14%   | 10.07%| 0.85 |
-| RF + MI     | 91.78% | 85.14%   | 6.64% | 0.85 |
-| XGB + MI    | 90.41% | 84.46%   | 5.95% | 0.84 |
-| XGB + Boruta| 90.41% | 83.78%   | 6.63% | 0.83 |
-| RF + Boruta | 90.41% | 83.78%   | 6.63% | 0.83 |
-| SVM + Boruta| 93.84% | 83.11%   | 10.73%| 0.83 |
-| XGB + PCA   | 92.47% | 82.43%   | 10.04%| 0.82 |
-| ResNet50 (CNN baseline) | 84.93% | 77.70% | 7.23% | — |
-
-RF + PCA selected as the optimal configuration for prototype deployment.
-
----
-
 ## Setup and Installation
 
 ### 1. Clone the repository
