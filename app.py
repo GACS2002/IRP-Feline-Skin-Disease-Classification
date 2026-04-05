@@ -18,10 +18,10 @@ CORS(app)
 def index():
     return send_from_directory(".", "index.html")
 
-# ── Class mapping (update if class_to_idx differs) ───────
+# Class mapping
 CLASS_NAMES = ["Flea Allergy", "Health", "Ringworm", "Scabies"]
 
-# ── Load models once at startup ───────────────────────────
+# Load models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
@@ -33,7 +33,7 @@ deit.eval()
 pca = joblib.load("models/pca_transformer.pkl")
 svm = joblib.load("models/svm_pca_model.pkl")
 
-# ── Preprocessing ─────────────────────────────────────────
+# Preprocessing
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
